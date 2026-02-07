@@ -714,9 +714,26 @@ const Hero = () => {
                     0% { transform: translateX(-33.333%); }
                     100% { transform: translateX(0); }
                 }
+                @keyframes orbDrift {
+                    0%   { transform: translate(0%, 0%) rotate(-10deg) scale(1); }
+                    15%  { transform: translate(8%, 4%) rotate(-6deg) scale(1.03); }
+                    30%  { transform: translate(3%, -6%) rotate(-12deg) scale(0.98); }
+                    50%  { transform: translate(-5%, 3%) rotate(-8deg) scale(1.05); }
+                    65%  { transform: translate(6%, -3%) rotate(-14deg) scale(1.01); }
+                    80%  { transform: translate(-3%, 5%) rotate(-5deg) scale(0.97); }
+                    100% { transform: translate(0%, 0%) rotate(-10deg) scale(1); }
+                }
+                @keyframes orbDriftSecondary {
+                    0%   { transform: translate(0%, 0%) scale(1); }
+                    20%  { transform: translate(-6%, 5%) scale(1.06); }
+                    40%  { transform: translate(5%, -4%) scale(0.95); }
+                    60%  { transform: translate(-3%, -6%) scale(1.04); }
+                    80%  { transform: translate(4%, 3%) scale(0.98); }
+                    100% { transform: translate(0%, 0%) scale(1); }
+                }
             `}</style>
 
-            {/* Background Gradient Blob */}
+            {/* Background Gradient Blob — slow organic drift */}
             <motion.div
                 initial={{ opacity: 0, scale: 0.8 }}
                 animate={{ opacity: 0.95, scale: 1 }}
@@ -724,16 +741,17 @@ const Hero = () => {
                 style={{
                     position: 'absolute',
                     top: '-20%',
-                    left: '-10%',
+                    left: '-25%',
                     width: '120vw',
                     height: '120vh',
-                    background: 'radial-gradient(circle, #003366 0%, rgba(0, 51, 102, 0.8) 50%, rgba(0, 51, 102, 0) 70%)',
+                    background: 'radial-gradient(ellipse 70% 80%, #003366 0%, rgba(0, 51, 102, 0.8) 40%, rgba(0, 51, 102, 0) 68%)',
                     filter: 'blur(80px)',
                     zIndex: 0,
-                    transform: 'rotate(-10deg)'
+                    animation: 'orbDrift 25s ease-in-out infinite',
+                    willChange: 'transform'
                 }}
             />
-            {/* Secondary lighter blur */}
+            {/* Secondary lighter blur — counter-drift */}
             <div style={{
                 position: 'absolute',
                 top: '20%',
@@ -743,7 +761,9 @@ const Hero = () => {
                 background: '#818cf8',
                 filter: 'blur(120px)',
                 opacity: 0.1,
-                zIndex: 0
+                zIndex: 0,
+                animation: 'orbDriftSecondary 30s ease-in-out infinite',
+                willChange: 'transform'
             }} />
 
             <Navbar />
