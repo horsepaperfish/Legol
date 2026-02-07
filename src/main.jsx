@@ -8,6 +8,7 @@ import Timeline from './components/Timeline.jsx'
 import Chat from './components/Chat.jsx'
 import Resources from './components/Resources.jsx'
 import Login from './components/Login.jsx'
+import Flowchart from './components/Flowchart.jsx'
 
 const pageVariants = {
   initial: { opacity: 0, y: 12 },
@@ -25,6 +26,7 @@ function AnimatedRoutes() {
         <Route path="/timeline" element={<motion.div variants={pageVariants} initial="initial" animate="animate" exit="exit"><Timeline /></motion.div>} />
         <Route path="/resources" element={<motion.div variants={pageVariants} initial="initial" animate="animate" exit="exit"><Resources /></motion.div>} />
         <Route path="/login" element={<motion.div variants={pageVariants} initial="initial" animate="animate" exit="exit"><Login /></motion.div>} />
+        <Route path="/flowchart" element={<motion.div variants={pageVariants} initial="initial" animate="animate" exit="exit"><Flowchart /></motion.div>} />
       </Routes>
     </AnimatePresence>
   )
