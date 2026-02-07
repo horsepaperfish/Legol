@@ -1,8 +1,8 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Send, ChevronDown, ChevronUp, CheckCircle, AlertCircle, Paperclip, X, GitBranch, ExternalLink } from 'lucide-react';
+import { Send, ChevronDown, ChevronUp, CheckCircle, AlertCircle, Paperclip, X, GitBranch, ExternalLink, Sparkles, FileText } from 'lucide-react';
 import { api } from '../api';
-import { useChatContext } from '../context/ChatContext';
+import { useChatContext, ALL_DOCUMENTS } from '../context/ChatContext';
 
 /* ─── Navbar ─── */
 const Navbar = ({ activePage = 'Chat' }) => {
@@ -266,88 +266,14 @@ const FilterDropdown = ({ label, value, options, isOpen, onToggle, onChange }) =
     );
 };
 
-/* ─── Sample documents data ─── */
-const DOCUMENTS = [
-    {
-        id: 'birth-cert',
-        title: 'Birth Certificate (Original)',
-        source: 'Vital Records Office',
-        due: 'Feb 1, 2026',
-        description: 'Original or certified copy of birth certificate',
-        status: 'VERIFIED',
-        category: 'Identity'
-    },
-    {
-        id: 'passport',
-        title: 'Passport Copy',
-        source: 'Department of State',
-        due: null,
-        description: 'Valid passport identification page copy',
-        status: 'VERIFIED',
-        category: 'Identity'
-    },
-    {
-        id: 'n400',
-        title: 'Form N-400 (Naturalization Application)',
-        source: 'USCIS',
-        due: 'Feb 7, 2026',
-        description: 'Application for naturalization form',
-        status: 'UPLOADED',
-        category: 'Applications'
-    },
-    {
-        id: 'tax-returns',
-        title: 'Tax Returns (Last 5 Years)',
-        source: 'IRS',
-        due: 'Feb 14, 2026',
-        description: 'Federal tax return transcripts for the last 5 years',
-        status: 'UPLOADED',
-        category: 'Financial'
-    },
-    {
-        id: 'employment-letter',
-        title: 'Employment Verification Letter',
-        source: 'Current Employer',
-        due: 'Feb 10, 2026',
-        description: 'Letter confirming current employment status',
-        status: 'UPLOADED',
-        category: 'Work'
-    },
-    {
-        id: 'marriage-cert',
-        title: 'Marriage Certificate',
-        source: 'County Clerk',
-        due: null,
-        description: 'Certified copy of marriage certificate',
-        status: 'VERIFIED',
-        category: 'Family'
-    },
-    {
-        id: 'background-check',
-        title: 'FBI Background Check',
-        source: 'FBI',
-        due: 'Mar 1, 2026',
-        description: 'Criminal background check clearance',
-        status: 'UPLOADED',
-        category: 'Background'
-    },
-    {
-        id: 'lease-agreement',
-        title: 'Lease Agreement',
-        source: 'Landlord / Property Management',
-        due: null,
-        description: 'Current residential lease or mortgage statement',
-        status: 'VERIFIED',
-        category: 'Residence'
-    }
-];
-
-const DOC_CATEGORIES = ['All Documents', 'Identity', 'Applications', 'Financial', 'Work', 'Family', 'Background', 'Residence'];
+/* ─── Document categories (derived from full pool) ─── */
+const DOC_CATEGORIES = ['All', 'Identity', 'Student', 'Applications', 'Financial', 'Work', 'Family', 'Background', 'Residence'];
 
 /* ─── Document Card (draggable) ─── */
-const DocumentCard = ({ doc }) => {
+const DocumentCard = ({ doc, isSuggested }) => {
     const navigate = useNavigate();
     const isVerified = doc.status === 'VERIFIED';
+    const isPending = doc.status === 'PENDING';
 
     const handleDragStart = (e) => {
         e.dataTransfer.setData('text/plain', `[Document: ${doc.title}]`);
@@ -355,51 +281,61 @@ const DocumentCard = ({ doc }) => {
         e.dataTransfer.effectAllowed = 'copy';
     };
 
+    const borderColor = isVerified ? '#28a745' : isPending ? '#f59e0b' : '#2563eb';
+
     return (
         <div
             draggable
             onDragStart={handleDragStart}
             style={{
-                background: 'rgba(255, 255, 255, 0.75)',
+                background: isSuggested
+                    ? 'linear-gradient(135deg, rgba(255,255,255,0.85) 0%, rgba(220,232,245,0.6) 100%)'
+                    : 'rgba(255, 255, 255, 0.75)',
                 backdropFilter: 'blur(8px)',
                 borderRadius: '16px',
-                padding: '20px 24px',
+                padding: '16px 20px',
                 cursor: 'grab',
-                transition: 'all 0.2s ease',
-                boxShadow: '0 2px 8px rgba(0, 51, 102, 0.04)',
-                borderLeft: `3px solid ${isVerified ? '#28a745' : '#2563eb'}`,
+                transition: 'all 0.25s ease',
+                boxShadow: isSuggested
+                    ? '0 2px 12px rgba(0, 51, 102, 0.08)'
+                    : '0 2px 8px rgba(0, 51, 102, 0.04)',
+                borderLeft: `3px solid ${borderColor}`,
             }}
             onMouseEnter={(e) => {
                 e.currentTarget.style.boxShadow = '0 4px 16px rgba(0, 51, 102, 0.1)';
                 e.currentTarget.style.transform = 'translateY(-1px)';
             }}
             onMouseLeave={(e) => {
-                e.currentTarget.style.boxShadow = '0 2px 8px rgba(0, 51, 102, 0.04)';
+                e.currentTarget.style.boxShadow = isSuggested
+                    ? '0 2px 12px rgba(0, 51, 102, 0.08)'
+                    : '0 2px 8px rgba(0, 51, 102, 0.04)';
                 e.currentTarget.style.transform = 'translateY(0)';
             }}
         >
-            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '14px' }}>
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
                 {/* Status Icon */}
                 <div style={{ paddingTop: '2px', flexShrink: 0 }}>
                     {isVerified
-                        ? <CheckCircle size={22} color="#28a745" />
-                        : <AlertCircle size={22} color="#2563eb" />
+                        ? <CheckCircle size={20} color="#28a745" />
+                        : isPending
+                            ? <FileText size={20} color="#f59e0b" />
+                            : <AlertCircle size={20} color="#2563eb" />
                     }
                 </div>
 
                 {/* Content */}
                 <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '6px' }}>
                         <h4 style={{
                             margin: 0,
-                            fontSize: '15px',
+                            fontSize: '14px',
                             fontWeight: '600',
                             color: '#1E272D',
                             lineHeight: '1.35'
                         }}>
                             {doc.title}
                         </h4>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
                             <button
                                 onClick={(e) => { e.stopPropagation(); navigate(`/flowchart?doc=${doc.id}`); }}
                                 title="View in Flowchart"
@@ -414,40 +350,55 @@ const DocumentCard = ({ doc }) => {
                                     justifyContent: 'center',
                                     transition: 'all 0.2s ease'
                                 }}
-                                onMouseEnter={(e) => {
-                                    e.currentTarget.style.background = 'rgba(0,51,102,0.1)';
-                                }}
-                                onMouseLeave={(e) => {
-                                    e.currentTarget.style.background = 'rgba(0,51,102,0.04)';
-                                }}
+                                onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(0,51,102,0.1)'}
+                                onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(0,51,102,0.04)'}
                             >
                                 <GitBranch size={13} color="#003366" />
                             </button>
                             <span style={{
-                                fontSize: '11px',
+                                fontSize: '10px',
                                 fontWeight: '700',
-                                color: isVerified ? '#155724' : '#004085',
+                                color: isVerified ? '#155724' : isPending ? '#92400e' : '#004085',
                                 letterSpacing: '0.3px',
-                                paddingTop: '2px'
+                                padding: '2px 6px',
+                                borderRadius: '4px',
+                                background: isVerified ? 'rgba(40,167,69,0.08)' : isPending ? 'rgba(245,158,11,0.08)' : 'rgba(37,99,235,0.08)'
                             }}>
                                 {doc.status}
                             </span>
                         </div>
                     </div>
 
-                    <div style={{ display: 'flex', gap: '6px', alignItems: 'center', marginTop: '4px' }}>
-                        <span style={{ fontSize: '13px', color: '#8896a6' }}>{doc.source}</span>
+                    <div style={{ display: 'flex', gap: '6px', alignItems: 'center', marginTop: '4px', flexWrap: 'wrap' }}>
+                        <span style={{ fontSize: '12px', color: '#8896a6' }}>{doc.source}</span>
                         {doc.due && (
                             <>
-                                <span style={{ fontSize: '13px', color: '#8896a6' }}>·</span>
-                                <span style={{ fontSize: '13px', color: '#dc3545', fontWeight: '500' }}>Due: {doc.due}</span>
+                                <span style={{ fontSize: '12px', color: '#8896a6' }}>·</span>
+                                <span style={{ fontSize: '12px', color: '#dc3545', fontWeight: '500' }}>Due: {doc.due}</span>
                             </>
+                        )}
+                        {isSuggested && (
+                            <span style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '3px',
+                                fontSize: '10px',
+                                fontWeight: '600',
+                                color: '#003366',
+                                background: 'rgba(0, 51, 102, 0.06)',
+                                padding: '2px 8px',
+                                borderRadius: '100px',
+                                marginLeft: '2px'
+                            }}>
+                                <Sparkles size={10} />
+                                Suggested
+                            </span>
                         )}
                     </div>
 
                     <p style={{
-                        margin: '6px 0 0',
-                        fontSize: '13px',
+                        margin: '4px 0 0',
+                        fontSize: '12px',
                         color: '#8896a6',
                         lineHeight: '1.45'
                     }}>
@@ -465,22 +416,47 @@ const Chat = () => {
     const [query, setQuery] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [openDropdown, setOpenDropdown] = useState(null);
-    const [activeCategory, setActiveCategory] = useState('All Documents');
+    const [activeCategory, setActiveCategory] = useState('All');
     const [isDragOver, setIsDragOver] = useState(false);
     const [isChatDragOver, setIsChatDragOver] = useState(false);
     const [uploadedFiles, setUploadedFiles] = useState([]);
     
-    // Use global chat context
-    const { messages, setMessages, studentCountry, setStudentCountry, institution, setInstitution, topic, setTopic } = useChatContext();
+    // Use global chat context (includes suggestedDocs)
+    const { messages, setMessages, studentCountry, setStudentCountry, institution, setInstitution, topic, setTopic, suggestedDocIds, suggestedDocs } = useChatContext();
     
     const inputRef = useRef(null);
     const fileInputRef = useRef(null);
     const chatColumnRef = useRef(null);
     const dragCounterRef = useRef(0);
+    const prevMessageCountRef = useRef(messages.length);
 
-    const filteredDocs = activeCategory === 'All Documents'
-        ? DOCUMENTS
-        : DOCUMENTS.filter(d => d.category === activeCategory);
+    // Track when new suggestions appear after a chat response
+    const [showNewBadge, setShowNewBadge] = useState(false);
+    useEffect(() => {
+        if (messages.length > prevMessageCountRef.current) {
+            const lastMsg = messages[messages.length - 1];
+            if (lastMsg?.role === 'assistant' && messages.length > 2) {
+                setShowNewBadge(true);
+                const t = setTimeout(() => setShowNewBadge(false), 3000);
+                return () => clearTimeout(t);
+            }
+        }
+        prevMessageCountRef.current = messages.length;
+    }, [messages]);
+
+    // Filter: show suggested docs first, then others; apply category filter
+    const filteredDocs = useMemo(() => {
+        const docPool = activeCategory === 'All'
+            ? suggestedDocs
+            : suggestedDocs.filter(d => d.category === activeCategory);
+        return docPool;
+    }, [activeCategory, suggestedDocs]);
+
+    // Categories available in current suggestions
+    const availableCategories = useMemo(() => {
+        const cats = new Set(suggestedDocs.map(d => d.category));
+        return ['All', ...DOC_CATEGORIES.filter(c => c !== 'All' && cats.has(c))];
+    }, [suggestedDocs]);
 
     /* ── Send message ── */
     const handleSend = async () => {
@@ -1058,11 +1034,27 @@ const Chat = () => {
                     display: 'flex',
                     flexDirection: 'column',
                     overflow: 'hidden',
-                    gap: '16px'
+                    gap: '12px'
                 }}>
-                    {/* Panel Header with Flowchart link */}
+                    {/* Panel Header with suggestion indicator + Flowchart link */}
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <span style={{ fontSize: '15px', fontWeight: '600', color: '#003366' }}>Documents</span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                            <span style={{ fontSize: '15px', fontWeight: '600', color: '#003366' }}>Documents</span>
+                            <span style={{
+                                display: 'inline-flex', alignItems: 'center', gap: '4px',
+                                fontSize: '11px', fontWeight: '600',
+                                color: '#003366',
+                                background: showNewBadge
+                                    ? 'rgba(0, 51, 102, 0.12)'
+                                    : 'rgba(0, 51, 102, 0.06)',
+                                padding: '3px 10px',
+                                borderRadius: '100px',
+                                transition: 'all 0.4s ease'
+                            }}>
+                                <Sparkles size={11} />
+                                {showNewBadge ? 'Updated' : 'Suggested'}
+                            </span>
+                        </div>
                         <button
                             onClick={() => navigate('/flowchart')}
                             style={{
@@ -1088,23 +1080,36 @@ const Chat = () => {
                         </button>
                     </div>
 
+                    {/* Suggestion hint text */}
+                    <p style={{
+                        margin: 0,
+                        fontSize: '12px',
+                        color: '#8896a6',
+                        lineHeight: '1.5'
+                    }}>
+                        {messages.length <= 1
+                            ? 'Commonly needed documents for international students. Start chatting to get personalized suggestions.'
+                            : 'Documents updated based on your conversation. Keep chatting for more specific suggestions.'
+                        }
+                    </p>
+
                     {/* Category Chips */}
                     <div style={{
                         display: 'flex',
                         flexWrap: 'wrap',
-                        gap: '8px'
+                        gap: '6px'
                     }}>
-                        {DOC_CATEGORIES.map((cat) => (
+                        {availableCategories.map((cat) => (
                             <button
                                 key={cat}
                                 onClick={() => setActiveCategory(cat)}
                                 style={{
-                                    padding: '10px 20px',
-                                    borderRadius: '12px',
+                                    padding: '7px 14px',
+                                    borderRadius: '10px',
                                     border: 'none',
                                     background: activeCategory === cat ? '#003366' : 'rgba(255,255,255,0.75)',
                                     color: activeCategory === cat ? '#FFFFFF' : '#64748b',
-                                    fontSize: '13px',
+                                    fontSize: '12px',
                                     fontWeight: '600',
                                     cursor: 'pointer',
                                     backdropFilter: 'blur(8px)',
@@ -1126,12 +1131,16 @@ const Chat = () => {
                         overflowY: 'auto',
                         display: 'flex',
                         flexDirection: 'column',
-                        gap: '12px',
+                        gap: '10px',
                         paddingRight: '4px',
                         paddingBottom: '8px'
                     }}>
                         {filteredDocs.map((doc) => (
-                            <DocumentCard key={doc.id} doc={doc} />
+                            <DocumentCard
+                                key={doc.id}
+                                doc={doc}
+                                isSuggested={suggestedDocIds.includes(doc.id)}
+                            />
                         ))}
 
                         {filteredDocs.length === 0 && (

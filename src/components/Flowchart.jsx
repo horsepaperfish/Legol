@@ -1,11 +1,12 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
     FileText, Scale, AlertTriangle, CheckCircle,
     ChevronRight, ZoomIn, ZoomOut, Maximize2, X, Clock,
-    Shield, BookOpen, Landmark, Users, Briefcase, Home, GitBranch
+    Shield, BookOpen, Landmark, Users, Briefcase, Home, GitBranch, Sparkles
 } from 'lucide-react';
+import { useChatContext, ALL_DOCUMENTS } from '../context/ChatContext';
 
 /* ─── Navbar (consistent with other pages) ─── */
 const Navbar = () => {
@@ -109,57 +110,93 @@ const Navbar = () => {
 
 
 /* ═══════════════════════════════════════════════════
-   FLOWCHART DATA
+   ICON MAP  –  maps category → icon component
    ═══════════════════════════════════════════════════ */
-
-const FLOWCHART_DATA = {
-    documents: [
-        { id: 'birth-cert', label: 'Birth Certificate', icon: FileText, category: 'Identity', status: 'verified' },
-        { id: 'passport', label: 'Passport Copy', icon: Shield, category: 'Identity', status: 'verified' },
-        { id: 'n400', label: 'Form N-400', icon: BookOpen, category: 'Applications', status: 'uploaded' },
-        { id: 'tax-returns', label: 'Tax Returns (5yr)', icon: Briefcase, category: 'Financial', status: 'uploaded' },
-        { id: 'employment-letter', label: 'Employment Letter', icon: Briefcase, category: 'Work', status: 'uploaded' },
-        { id: 'marriage-cert', label: 'Marriage Certificate', icon: Users, category: 'Family', status: 'verified' },
-        { id: 'background-check', label: 'FBI Background Check', icon: Shield, category: 'Background', status: 'uploaded' },
-        { id: 'lease-agreement', label: 'Lease Agreement', icon: Home, category: 'Residence', status: 'verified' },
-    ],
-    analyses: [
-        { id: 'identity-verification', label: 'Identity Verification', icon: Shield, description: 'Cross-references identity documents for authenticity and consistency' },
-        { id: 'eligibility-check', label: 'Eligibility Assessment', icon: Scale, description: 'Evaluates applicant qualifications against statutory requirements' },
-        { id: 'financial-review', label: 'Financial Review', icon: Briefcase, description: 'Analyzes financial standing and tax compliance history' },
-        { id: 'background-analysis', label: 'Background Analysis', icon: AlertTriangle, description: 'Reviews criminal history and moral character requirements' },
-        { id: 'residency-proof', label: 'Residency Verification', icon: Home, description: 'Confirms continuous residency and physical presence' },
-    ],
-    legalTexts: [
-        { id: 'ina-316', label: 'INA § 316', subtitle: 'General Naturalization Requirements', description: 'Residency, physical presence, and good moral character requirements for naturalization.', icon: Landmark },
-        { id: 'ina-312', label: 'INA § 312', subtitle: 'English & Civics Requirements', description: 'Language proficiency and knowledge of US history and government.', icon: BookOpen },
-        { id: 'ina-101', label: 'INA § 101(f)', subtitle: 'Good Moral Character', description: 'Statutory bars and conditions defining good moral character for immigration purposes.', icon: Scale },
-        { id: '8cfr-316', label: '8 CFR § 316.2', subtitle: 'Continuous Residence', description: 'Regulatory definition of continuous residence and exceptions for breaks.', icon: Clock },
-        { id: '8cfr-319', label: '8 CFR § 319.1', subtitle: 'Spouse of US Citizen', description: 'Reduced residency requirements for applicants married to US citizens.', icon: Users },
-        { id: 'uscis-policy', label: 'USCIS Policy Manual', subtitle: 'Vol. 12, Part D', description: 'General eligibility requirements including age, residency, and moral character.', icon: BookOpen },
-    ],
-    connections: [
-        { from: 'birth-cert', to: 'identity-verification' },
-        { from: 'passport', to: 'identity-verification' },
-        { from: 'n400', to: 'eligibility-check' },
-        { from: 'tax-returns', to: 'financial-review' },
-        { from: 'employment-letter', to: 'financial-review' },
-        { from: 'marriage-cert', to: 'eligibility-check' },
-        { from: 'background-check', to: 'background-analysis' },
-        { from: 'lease-agreement', to: 'residency-proof' },
-        { from: 'tax-returns', to: 'residency-proof' },
-        { from: 'identity-verification', to: 'ina-316' },
-        { from: 'eligibility-check', to: 'ina-316' },
-        { from: 'eligibility-check', to: '8cfr-319' },
-        { from: 'eligibility-check', to: 'ina-312' },
-        { from: 'financial-review', to: 'ina-101' },
-        { from: 'financial-review', to: 'ina-316' },
-        { from: 'background-analysis', to: 'ina-101' },
-        { from: 'background-analysis', to: 'uscis-policy' },
-        { from: 'residency-proof', to: '8cfr-316' },
-        { from: 'residency-proof', to: 'ina-316' },
-    ]
+const CATEGORY_ICON = {
+    Identity: Shield,
+    Student: BookOpen,
+    Applications: BookOpen,
+    Financial: Briefcase,
+    Work: Briefcase,
+    Family: Users,
+    Background: Shield,
+    Residence: Home,
 };
+
+/* ═══════════════════════════════════════════════════
+   ANALYSES & LEGAL TEXTS (static reference pools)
+   ═══════════════════════════════════════════════════ */
+const ALL_ANALYSES = [
+    { id: 'identity-verification', label: 'Identity Verification',    icon: Shield,        description: 'Cross-references identity documents for authenticity and consistency',                forCategories: ['Identity'] },
+    { id: 'visa-compliance',       label: 'Visa & Status Compliance', icon: BookOpen,      description: 'Verifies F-1 / visa status requirements and SEVIS compliance',                       forCategories: ['Student'] },
+    { id: 'eligibility-check',     label: 'Eligibility Assessment',   icon: Scale,         description: 'Evaluates applicant qualifications against statutory requirements',                    forCategories: ['Applications', 'Family'] },
+    { id: 'financial-review',      label: 'Financial Review',         icon: Briefcase,     description: 'Analyzes financial standing and tax compliance history',                               forCategories: ['Financial'] },
+    { id: 'work-authorization',    label: 'Work Authorization',       icon: Briefcase,     description: 'Reviews employment eligibility and authorization documents',                           forCategories: ['Work'] },
+    { id: 'background-analysis',   label: 'Background Analysis',      icon: AlertTriangle, description: 'Reviews criminal history and moral character requirements',                             forCategories: ['Background'] },
+    { id: 'residency-proof',       label: 'Residency Verification',   icon: Home,          description: 'Confirms continuous residency and physical presence',                                  forCategories: ['Residence'] },
+];
+
+const ALL_LEGAL_TEXTS = [
+    { id: 'ina-316',       label: 'INA § 316',           subtitle: 'General Naturalization Requirements', description: 'Residency, physical presence, and good moral character requirements.',         icon: Landmark, forAnalyses: ['eligibility-check', 'financial-review', 'residency-proof'] },
+    { id: 'ina-312',       label: 'INA § 312',           subtitle: 'English & Civics Requirements',      description: 'Language proficiency and knowledge of US history and government.',              icon: BookOpen, forAnalyses: ['eligibility-check', 'visa-compliance'] },
+    { id: 'ina-101',       label: 'INA § 101(f)',        subtitle: 'Good Moral Character',               description: 'Statutory bars and conditions defining good moral character.',                  icon: Scale,    forAnalyses: ['financial-review', 'background-analysis'] },
+    { id: '8cfr-316',      label: '8 CFR § 316.2',       subtitle: 'Continuous Residence',               description: 'Regulatory definition of continuous residence and exceptions.',                 icon: Clock,    forAnalyses: ['residency-proof'] },
+    { id: '8cfr-319',      label: '8 CFR § 319.1',       subtitle: 'Spouse of US Citizen',               description: 'Reduced residency requirements for spouses of US citizens.',                    icon: Users,    forAnalyses: ['eligibility-check'] },
+    { id: 'uscis-policy',  label: 'USCIS Policy Manual',  subtitle: 'Vol. 12, Part D',                   description: 'General eligibility requirements including age, residency, and moral character.',icon: BookOpen, forAnalyses: ['background-analysis', 'eligibility-check'] },
+    { id: '8cfr-214',      label: '8 CFR § 214.2(f)',     subtitle: 'F-1 Student Status',                description: 'Regulations governing F-1 student status, employment, and program requirements.', icon: Landmark, forAnalyses: ['visa-compliance', 'work-authorization'] },
+    { id: 'ina-101a15',    label: 'INA § 101(a)(15)(F)',  subtitle: 'Non-immigrant Student Visa',        description: 'Definition and requirements for F non-immigrant student classification.',        icon: BookOpen, forAnalyses: ['visa-compliance'] },
+    { id: '20cfr-656',     label: '20 CFR § 656',         subtitle: 'Labor Certification',               description: 'Regulations for permanent labor certification (PERM) process.',                  icon: Scale,    forAnalyses: ['work-authorization'] },
+];
+
+/* ═══════════════════════════════════════════════════
+   buildFlowchartData(suggestedDocs)
+   Dynamically assembles documents → analyses → legal
+   texts + connections based on the suggested docs.
+   ═══════════════════════════════════════════════════ */
+function buildFlowchartData(suggestedDocs) {
+    // 1. Map suggested docs → flowchart document nodes
+    const documents = suggestedDocs.map(d => ({
+        id: d.id,
+        label: d.title.replace(/\(.*?\)/, '').trim().slice(0, 28),
+        icon: CATEGORY_ICON[d.category] || FileText,
+        category: d.category,
+        status: d.status === 'VERIFIED' ? 'verified' : d.status === 'UPLOADED' ? 'uploaded' : 'pending',
+    }));
+
+    // 2. Determine which categories are present
+    const presentCategories = new Set(suggestedDocs.map(d => d.category));
+
+    // 3. Pick only the analyses that match present categories
+    const analyses = ALL_ANALYSES.filter(a =>
+        a.forCategories.some(c => presentCategories.has(c))
+    );
+    const analysisIds = new Set(analyses.map(a => a.id));
+
+    // 4. Pick legal texts that connect to selected analyses
+    const legalTexts = ALL_LEGAL_TEXTS.filter(l =>
+        l.forAnalyses.some(aId => analysisIds.has(aId))
+    );
+
+    // 5. Build connections: doc → analysis
+    const connections = [];
+    documents.forEach(doc => {
+        analyses.forEach(analysis => {
+            if (analysis.forCategories.includes(doc.category)) {
+                connections.push({ from: doc.id, to: analysis.id });
+            }
+        });
+    });
+    // analysis → legal
+    analyses.forEach(analysis => {
+        legalTexts.forEach(legal => {
+            if (legal.forAnalyses.includes(analysis.id)) {
+                connections.push({ from: analysis.id, to: legal.id });
+            }
+        });
+    });
+
+    return { documents, analyses, legalTexts, connections };
+}
 
 
 /* ═══════════════════════════════════════════════════
@@ -258,11 +295,11 @@ const FlowNode = ({ id, label, subtitle, icon: Icon, type, status, highlighted, 
 /* ═══════════════════════════════════════════════════
    Detail Panel (slide-in)
    ═══════════════════════════════════════════════════ */
-const DetailPanel = ({ node, type, onClose }) => {
+const DetailPanel = ({ node, type, onClose, flowData }) => {
     if (!node) return null;
 
-    const relatedEdges = FLOWCHART_DATA.connections.filter(c => c.from === node.id || c.to === node.id);
-    const allNodes = [...FLOWCHART_DATA.documents, ...FLOWCHART_DATA.analyses, ...FLOWCHART_DATA.legalTexts];
+    const relatedEdges = flowData.connections.filter(c => c.from === node.id || c.to === node.id);
+    const allNodes = [...flowData.documents, ...flowData.analyses, ...flowData.legalTexts];
     const connectedIds = relatedEdges.map(e => e.from === node.id ? e.to : e.from);
     const connectedNodes = allNodes.filter(n => connectedIds.includes(n.id));
 
@@ -422,6 +459,7 @@ const ConnectorLines = ({ nodeRefs, connections, highlightedIds, hasHighlight, z
 const Flowchart = () => {
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
+    const { suggestedDocs } = useChatContext();
 
     const [zoom, setZoom] = useState(1);
     const [pan, setPan] = useState({ x: 0, y: 0 });
@@ -434,20 +472,23 @@ const Flowchart = () => {
 
     const highlightDoc = searchParams.get('doc');
 
+    /* ─── Build flowchart data from suggested docs ─── */
+    const flowData = useMemo(() => buildFlowchartData(suggestedDocs), [suggestedDocs]);
+
     /* ─── Determine highlighted nodes ─── */
     const getHighlighted = useCallback(() => {
         const active = hoveredNode || selectedNode?.id || highlightDoc;
         if (!active) return new Set();
         const ids = new Set([active]);
-        FLOWCHART_DATA.connections.forEach(c => {
+        flowData.connections.forEach(c => {
             if (c.from === active || c.to === active) { ids.add(c.from); ids.add(c.to); }
         });
         const first = new Set(ids);
-        FLOWCHART_DATA.connections.forEach(c => {
+        flowData.connections.forEach(c => {
             if (first.has(c.from) || first.has(c.to)) { ids.add(c.from); ids.add(c.to); }
         });
         return ids;
-    }, [hoveredNode, selectedNode, highlightDoc]);
+    }, [hoveredNode, selectedNode, highlightDoc, flowData]);
 
     const highlightedIds = getHighlighted();
     const hasHighlight = highlightedIds.size > 0;
@@ -479,11 +520,11 @@ const Flowchart = () => {
 
     /* ─── Node click ─── */
     const handleNodeClick = (id) => {
-        const doc = FLOWCHART_DATA.documents.find(d => d.id === id);
+        const doc = flowData.documents.find(d => d.id === id);
         if (doc) { setSelectedNode(doc); setSelectedType('document'); return; }
-        const analysis = FLOWCHART_DATA.analyses.find(a => a.id === id);
+        const analysis = flowData.analyses.find(a => a.id === id);
         if (analysis) { setSelectedNode(analysis); setSelectedType('analysis'); return; }
-        const legal = FLOWCHART_DATA.legalTexts.find(l => l.id === id);
+        const legal = flowData.legalTexts.find(l => l.id === id);
         if (legal) { setSelectedNode(legal); setSelectedType('legal'); return; }
     };
 
@@ -526,17 +567,26 @@ const Flowchart = () => {
                     initial={{ opacity: 0, y: 8 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.4 }}
-                    style={{ fontSize: '20px', fontWeight: '600', color: '#003366', margin: 0, letterSpacing: '-0.3px' }}
+                    style={{ fontSize: '20px', fontWeight: '600', color: '#003366', margin: 0, letterSpacing: '-0.3px', display: 'flex', alignItems: 'center', gap: '8px' }}
                 >
                     Document Flowchart
+                    <span style={{
+                        display: 'inline-flex', alignItems: 'center', gap: '4px',
+                        fontSize: '11px', fontWeight: '600', color: '#003366',
+                        background: 'rgba(0,51,102,0.06)', padding: '3px 10px',
+                        borderRadius: '100px'
+                    }}>
+                        <Sparkles size={11} />
+                        {flowData.documents.length} suggested
+                    </span>
                 </motion.h1>
                 <motion.p
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     transition={{ delay: 0.15, duration: 0.4 }}
-                    style={{ fontSize: '12px', color: '#8896a6', margin: 0, maxWidth: '260px', lineHeight: '1.45' }}
+                    style={{ fontSize: '12px', color: '#8896a6', margin: 0, maxWidth: '300px', lineHeight: '1.45' }}
                 >
-                    Trace how each document connects to AI analysis and legal references
+                    Showing documents suggested from your chat. Keep chatting for more personalized analysis.
                 </motion.p>
             </div>
 
@@ -630,7 +680,7 @@ const Flowchart = () => {
                     {/* Connector lines */}
                     <ConnectorLines
                         nodeRefs={nodeRefs}
-                        connections={FLOWCHART_DATA.connections}
+                        connections={flowData.connections}
                         highlightedIds={highlightedIds}
                         hasHighlight={hasHighlight}
                         zoom={zoom}
@@ -644,19 +694,26 @@ const Flowchart = () => {
                         position: 'relative',
                         zIndex: 2
                     }}>
-                        {/* ─── Column 1: Documents ─── */}
+                        {/* ─── Column 1: Suggested Documents ─── */}
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', width: '220px', flexShrink: 0 }}>
                             <div style={{
                                 fontSize: '10px', fontWeight: '600', letterSpacing: '2.5px',
                                 textTransform: 'uppercase', color: 'rgba(0,51,102,0.3)',
-                                marginBottom: '6px', paddingLeft: '4px'
+                                marginBottom: '6px', paddingLeft: '4px',
+                                display: 'flex', alignItems: 'center', gap: '8px'
                             }}>
-                                Your Documents
-                                <span style={{ fontSize: '10px', fontWeight: '400', marginLeft: '8px', color: 'rgba(0,51,102,0.2)' }}>
-                                    {FLOWCHART_DATA.documents.length} files
+                                <span>Suggested Documents</span>
+                                <span style={{
+                                    display: 'inline-flex', alignItems: 'center', gap: '3px',
+                                    fontSize: '9px', fontWeight: '600', color: '#003366',
+                                    background: 'rgba(0,51,102,0.06)', padding: '2px 8px',
+                                    borderRadius: '100px', letterSpacing: '0.5px', textTransform: 'none'
+                                }}>
+                                    <Sparkles size={9} />
+                                    {flowData.documents.length}
                                 </span>
                             </div>
-                            {FLOWCHART_DATA.documents.map((doc, i) => (
+                            {flowData.documents.map((doc, i) => (
                                 <div key={doc.id} ref={(el) => setNodeRef(doc.id, el)} data-node>
                                     <FlowNode
                                         id={doc.id}
@@ -685,7 +742,7 @@ const Flowchart = () => {
                                 AI Analysis
                                 <span style={{ fontSize: '10px', fontWeight: '400', marginLeft: '8px', color: 'rgba(0,51,102,0.2)' }}>Processing</span>
                             </div>
-                            {FLOWCHART_DATA.analyses.map((a, i) => (
+                            {flowData.analyses.map((a, i) => (
                                 <div key={a.id} ref={(el) => setNodeRef(a.id, el)} data-node>
                                     <FlowNode
                                         id={a.id}
@@ -713,7 +770,7 @@ const Flowchart = () => {
                                 Legal References
                                 <span style={{ fontSize: '10px', fontWeight: '400', marginLeft: '8px', color: 'rgba(0,51,102,0.2)' }}>Source texts</span>
                             </div>
-                            {FLOWCHART_DATA.legalTexts.map((l, i) => (
+                            {flowData.legalTexts.map((l, i) => (
                                 <div key={l.id} ref={(el) => setNodeRef(l.id, el)} data-node>
                                     <FlowNode
                                         id={l.id}
@@ -742,6 +799,7 @@ const Flowchart = () => {
                         node={selectedNode}
                         type={selectedType}
                         onClose={() => { setSelectedNode(null); setSelectedType(null); }}
+                        flowData={flowData}
                     />
                 )}
             </AnimatePresence>
