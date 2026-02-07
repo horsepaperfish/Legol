@@ -9,6 +9,7 @@ import Chat from './components/Chat.jsx'
 import Resources from './components/Resources.jsx'
 import Login from './components/Login.jsx'
 import Flowchart from './components/Flowchart.jsx'
+import { ChatProvider } from './context/ChatContext.jsx'
 
 const pageVariants = {
   initial: { opacity: 0, y: 12 },
