@@ -461,6 +461,7 @@ const DocumentCard = ({ doc }) => {
 
 /* ─── Main Chat Page ─── */
 const Chat = () => {
+    const navigate = useNavigate();
     const [query, setQuery] = useState('');
     const [messages, setMessages] = useState([
         {
