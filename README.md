@@ -4,9 +4,21 @@
 
 1. Clone the repository
 2. Install dependencies: `npm install`
-3. Run the dev server: `npm run dev`
-4. Open your browser to the URL shown in terminal (usually http://localhost:5173) (This runs the frontend - which is the website we display for the demo)
-5. To run the backend: `cd backend && source venv/bin/activate && python app.py` (you need to run both servers for the chatbot to work) 
+3. Set up Firebase Authentication (for Google Sign-In):
+   - Go to [Firebase Console](https://console.firebase.google.com/)
+   - Create a new project or select an existing one
+   - Enable Google Authentication:
+     - Go to Authentication > Sign-in method
+     - Enable Google provider
+   - Get your Firebase configuration:
+     - Go to Project Settings > General
+     - Scroll down to "Your apps" and click on the web app (or create one)
+     - Copy the Firebase configuration values
+   - Create a `.env` file in the root directory (copy from `.env.example`)
+   - Add your Firebase configuration values to the `.env` file
+4. Run the dev server: `npm run dev`
+5. Open your browser to the URL shown in terminal (usually http://localhost:5173) (This runs the frontend - which is the website we display for the demo)
+6. To run the backend: `cd backend && source venv/bin/activate && python app.py` (you need to run both servers for the chatbot to work) 
 
 # React + Vite
 

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Eye, EyeOff, ArrowRight, GraduationCap } from 'lucide-react';
+import { auth, googleProvider, signInWithPopup } from '../firebase';
 
 /* ─── Navbar (consistent with other pages) ─── */
 const Navbar = () => {
@@ -108,10 +109,76 @@ const Login = () => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [name, setName] = useState('');
+    const [error, setError] = useState('');
+    const [loading, setLoading] = useState(false);
 
     const handleSubmit = (e) => {
         e.preventDefault();
         navigate('/');
+    };
+
+    const handleGoogleSignIn = async () => {
+        try {
+            setLoading(true);
+            setError('');
+            const result = await signInWithPopup(auth, googleProvider);
+            const user = result.user;
+
+            // Store user info in localStorage or your state management
+            localStorage.setItem('user', JSON.stringify({
+                uid: user.uid,
+                email: user.email,
+                displayName: user.displayName,
+                photoURL: user.photoURL
+            }));
+
+            // Navigate to home page
+            navigate('/');
+        } catch (error) {
+            console.error('Error signing in with Google:', error);
+            setError(error.message || 'Failed to sign in with Google. Please try again.');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleSchoolEmailSignIn = async () => {
+        // For school email, we'll still use Google sign-in but could add validation
+        // to check if the email domain is from an educational institution
+        try {
+            setLoading(true);
+            setError('');
+            const result = await signInWithPopup(auth, googleProvider);
+            const user = result.user;
+
+            // Check if email is from a school domain (optional validation)
+            const email = user.email.toLowerCase();
+            const isSchoolEmail = email.endsWith('.edu') ||
+                                  email.includes('student') ||
+                                  email.includes('school') ||
+                                  email.includes('university');
+
+            if (!isSchoolEmail) {
+                // You can choose to allow all emails or restrict to school emails
+                console.warn('Email may not be from an educational institution');
+            }
+
+            // Store user info
+            localStorage.setItem('user', JSON.stringify({
+                uid: user.uid,
+                email: user.email,
+                displayName: user.displayName,
+                photoURL: user.photoURL,
+                isSchoolEmail: isSchoolEmail
+            }));
+
+            navigate('/');
+        } catch (error) {
+            console.error('Error signing in with school email:', error);
+            setError(error.message || 'Failed to sign in. Please try again.');
+        } finally {
+            setLoading(false);
+        }
     };
 
     return (
@@ -371,6 +438,25 @@ const Login = () => {
                                         : 'Sign in to continue your immigration journey.'}
                                 </p>
 
+                                {/* Error message */}
+                                {error && (
+                                    <motion.div
+                                        initial={{ opacity: 0, y: -10 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        style={{
+                                            padding: '12px 16px',
+                                            borderRadius: '10px',
+                                            background: 'rgba(239, 68, 68, 0.1)',
+                                            border: '1px solid rgba(239, 68, 68, 0.2)',
+                                            color: '#dc2626',
+                                            fontSize: '13px',
+                                            marginBottom: '8px'
+                                        }}
+                                    >
+                                        {error}
+                                    </motion.div>
+                                )}
+
                                 <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                                     {/* Name field (sign up only) */}
                                     <AnimatePresence>
@@ -579,6 +665,8 @@ const Login = () => {
                                 {/* School Email Login — prominent */}
                                 <motion.button
                                     type="button"
+                                    onClick={handleSchoolEmailSignIn}
+                                    disabled={loading}
                                     whileHover={{ scale: 1.015, y: -1 }}
                                     whileTap={{ scale: 0.98 }}
                                     style={{
@@ -589,7 +677,7 @@ const Login = () => {
                                         background: 'rgba(255, 255, 255, 0.7)',
                                         backdropFilter: 'blur(10px)',
                                         WebkitBackdropFilter: 'blur(10px)',
-                                        cursor: 'pointer',
+                                        cursor: loading ? 'not-allowed' : 'pointer',
                                         fontSize: '14px',
                                         fontFamily: 'inherit',
                                         fontWeight: '600',
@@ -599,26 +687,33 @@ const Login = () => {
                                         justifyContent: 'center',
                                         gap: '10px',
                                         transition: 'all 0.25s ease',
-                                        boxShadow: 'inset 0 1px 1px rgba(255,255,255,0.5), 0 2px 8px rgba(0,51,102,0.05)'
+                                        boxShadow: 'inset 0 1px 1px rgba(255,255,255,0.5), 0 2px 8px rgba(0,51,102,0.05)',
+                                        opacity: loading ? 0.6 : 1
                                     }}
                                     onMouseEnter={(e) => {
-                                        e.currentTarget.style.borderColor = 'rgba(0, 51, 102, 0.3)';
-                                        e.currentTarget.style.boxShadow = 'inset 0 1px 2px rgba(255,255,255,0.6), 0 4px 14px rgba(0,51,102,0.1)';
-                                        e.currentTarget.style.background = 'rgba(255, 255, 255, 0.9)';
+                                        if (!loading) {
+                                            e.currentTarget.style.borderColor = 'rgba(0, 51, 102, 0.3)';
+                                            e.currentTarget.style.boxShadow = 'inset 0 1px 2px rgba(255,255,255,0.6), 0 4px 14px rgba(0,51,102,0.1)';
+                                            e.currentTarget.style.background = 'rgba(255, 255, 255, 0.9)';
+                                        }
                                     }}
                                     onMouseLeave={(e) => {
-                                        e.currentTarget.style.borderColor = 'rgba(0, 51, 102, 0.15)';
-                                        e.currentTarget.style.boxShadow = 'inset 0 1px 1px rgba(255,255,255,0.5), 0 2px 8px rgba(0,51,102,0.05)';
-                                        e.currentTarget.style.background = 'rgba(255, 255, 255, 0.7)';
+                                        if (!loading) {
+                                            e.currentTarget.style.borderColor = 'rgba(0, 51, 102, 0.15)';
+                                            e.currentTarget.style.boxShadow = 'inset 0 1px 1px rgba(255,255,255,0.5), 0 2px 8px rgba(0,51,102,0.05)';
+                                            e.currentTarget.style.background = 'rgba(255, 255, 255, 0.7)';
+                                        }
                                     }}
                                 >
                                     <GraduationCap size={18} color="#003366" />
-                                    School Email / Student ID
+                                    {loading ? 'Signing in...' : 'School Email / Student ID'}
                                 </motion.button>
 
                                 {/* Google login */}
                                 <motion.button
                                     type="button"
+                                    onClick={handleGoogleSignIn}
+                                    disabled={loading}
                                     whileHover={{ scale: 1.015, y: -1 }}
                                     whileTap={{ scale: 0.98 }}
                                     style={{
@@ -629,7 +724,7 @@ const Login = () => {
                                         background: 'rgba(255, 255, 255, 0.6)',
                                         backdropFilter: 'blur(10px)',
                                         WebkitBackdropFilter: 'blur(10px)',
-                                        cursor: 'pointer',
+                                        cursor: loading ? 'not-allowed' : 'pointer',
                                         fontSize: '14px',
                                         fontFamily: 'inherit',
                                         fontWeight: '600',
@@ -640,21 +735,26 @@ const Login = () => {
                                         gap: '10px',
                                         marginTop: '10px',
                                         transition: 'all 0.25s ease',
-                                        boxShadow: 'inset 0 1px 1px rgba(255,255,255,0.5), 0 2px 6px rgba(0,51,102,0.04)'
+                                        boxShadow: 'inset 0 1px 1px rgba(255,255,255,0.5), 0 2px 6px rgba(0,51,102,0.04)',
+                                        opacity: loading ? 0.6 : 1
                                     }}
                                     onMouseEnter={(e) => {
-                                        e.currentTarget.style.borderColor = 'rgba(0, 51, 102, 0.25)';
-                                        e.currentTarget.style.boxShadow = 'inset 0 1px 2px rgba(255,255,255,0.6), 0 4px 12px rgba(0,51,102,0.08)';
-                                        e.currentTarget.style.background = 'rgba(255, 255, 255, 0.85)';
+                                        if (!loading) {
+                                            e.currentTarget.style.borderColor = 'rgba(0, 51, 102, 0.25)';
+                                            e.currentTarget.style.boxShadow = 'inset 0 1px 2px rgba(255,255,255,0.6), 0 4px 12px rgba(0,51,102,0.08)';
+                                            e.currentTarget.style.background = 'rgba(255, 255, 255, 0.85)';
+                                        }
                                     }}
                                     onMouseLeave={(e) => {
-                                        e.currentTarget.style.borderColor = 'rgba(0, 51, 102, 0.1)';
-                                        e.currentTarget.style.boxShadow = 'inset 0 1px 1px rgba(255,255,255,0.5), 0 2px 6px rgba(0,51,102,0.04)';
-                                        e.currentTarget.style.background = 'rgba(255, 255, 255, 0.6)';
+                                        if (!loading) {
+                                            e.currentTarget.style.borderColor = 'rgba(0, 51, 102, 0.1)';
+                                            e.currentTarget.style.boxShadow = 'inset 0 1px 1px rgba(255,255,255,0.5), 0 2px 6px rgba(0,51,102,0.04)';
+                                            e.currentTarget.style.background = 'rgba(255, 255, 255, 0.6)';
+                                        }
                                     }}
                                 >
                                     <span style={{ fontSize: '16px', fontWeight: '700' }}>G</span>
-                                    Continue with Google
+                                    {loading ? 'Signing in...' : 'Continue with Google'}
                                 </motion.button>
 
                                 {/* Toggle link */}
