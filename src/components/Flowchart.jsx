@@ -512,7 +512,7 @@ const Flowchart = () => {
         if (!el) return;
         const onWheel = (e) => {
             e.preventDefault();
-            setZoom(z => Math.min(2, Math.max(0.35, z + (e.deltaY > 0 ? -0.06 : 0.06))));
+            setZoom(z => Math.min(2, Math.max(0.35, z + (e.deltaY > 0 ? -0.02 : 0.02))));
         };
         el.addEventListener('wheel', onWheel, { passive: false });
         return () => el.removeEventListener('wheel', onWheel);
