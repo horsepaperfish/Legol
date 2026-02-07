@@ -2,6 +2,7 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 from graph_manager import GraphManager
 from claude_integration import ClaudeIntegration
+from file_parser import extract_text_from_file
 import os
 from werkzeug.utils import secure_filename
 
@@ -87,12 +88,13 @@ def chat():
     data = request.json
     query_text = data.get('query')
     conversation_history = data.get('history', [])
+    file_contents = data.get('files', [])
 
     if not query_text:
         return jsonify({"error": "No query provided"}), 400
 
-    # Call Claude for conversational response
-    answer = claude_integration.chat(query_text, conversation_history)
+    # Call Claude for conversational response with file content
+    answer = claude_integration.chat(query_text, conversation_history, file_contents)
 
     return jsonify({
         "answer": answer
@@ -113,9 +115,17 @@ def upload_file():
         filename = secure_filename(file.filename)
         filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
         file.save(filepath)
+
+        # Extract text content from the file
+        file_content = extract_text_from_file(filepath)
+
         uploaded_files.append({
             'filename': filename,
-            'path': filepath
+            'path': filepath,
+            'content': file_content.get('text'),
+            'pages': file_content.get('pages', 0),
+            'type': file_content.get('type', 'Unknown'),
+            'error': file_content.get('error')
         })
 
     return jsonify({

@@ -13,8 +13,8 @@ export const api = {
         return response.data;
     },
 
-    chat: async (query, history = []) => {
-        const response = await axios.post(`${API_BASE_URL}/chat`, { query, history });
+    chat: async (query, history = [], files = []) => {
+        const response = await axios.post(`${API_BASE_URL}/chat`, { query, history, files });
         return response.data;
     },
 

@@ -92,7 +92,7 @@ class ClaudeIntegration:
             print(f"Error calling Claude: {e}")
             return {"new_nodes": [], "new_edges": []}
 
-    def chat(self, query_text, conversation_history=None):
+    def chat(self, query_text, conversation_history=None, file_contents=None):
         """
         Sends a conversational query to Claude and returns a natural language response.
         For use in the chat interface.
@@ -104,6 +104,13 @@ class ClaudeIntegration:
         Provide clear, accurate, and helpful responses to user questions. Be conversational but professional.
         If you're unsure about specific legal advice, recommend consulting with an immigration attorney.
         Focus on providing general guidance, process explanations, and document requirements.
+
+        When analyzing uploaded documents, identify:
+        - What type of document it is (visa application, passport, etc.)
+        - What agency issued it
+        - Key information and requirements
+        - Next steps the user should take
+        - Any deadlines or important dates
         """
 
         messages = []
@@ -119,10 +126,33 @@ class ClaudeIntegration:
                     "content": msg.get("text")
                 })
 
-        # Add current query
+        # Build the current message content
+        message_content = query_text
+
+        # Add file content if provided
+        if file_contents and len(file_contents) > 0:
+            message_content += "\n\n--- UPLOADED DOCUMENTS ---\n"
+            for file_info in file_contents:
+                filename = file_info.get('filename', 'Unknown')
+                content = file_info.get('content')
+                file_type = file_info.get('type', 'Unknown')
+                pages = file_info.get('pages', 0)
+
+                if content:
+                    message_content += f"\n\nDocument: {filename} ({file_type}, {pages} pages)\n"
+                    message_content += "Content:\n"
+                    # Limit content to first 4000 characters to avoid token limits
+                    message_content += content[:4000]
+                    if len(content) > 4000:
+                        message_content += "\n... (content truncated)"
+                else:
+                    error = file_info.get('error', 'Unknown error')
+                    message_content += f"\n\nDocument: {filename} - Could not extract text: {error}\n"
+
+        # Add current query with file content
         messages.append({
             "role": "user",
-            "content": query_text
+            "content": message_content
         })
 
         try:

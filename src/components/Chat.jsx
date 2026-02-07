@@ -345,6 +345,7 @@ const Chat = () => {
 
         const userMessage = query.trim();
         let messageText = userMessage;
+        let fileContents = [];
 
         // Upload files if any
         if (uploadedFiles.length > 0) {
@@ -354,6 +355,9 @@ const Chat = () => {
                 messageText = userMessage
                     ? `${userMessage}\n\n[Uploaded files: ${fileNames}]`
                     : `[Uploaded files: ${fileNames}]`;
+
+                // Store file contents for sending to Claude
+                fileContents = uploadResult.files;
             } catch (err) {
                 console.error('File upload failed:', err);
                 setMessages(prev => [...prev, { role: 'assistant', text: 'Sorry, file upload failed. Please try again.' }]);
@@ -375,7 +379,7 @@ const Chat = () => {
                 text: msg.text
             }));
 
-            const result = await api.chat(messageText, history);
+            const result = await api.chat(messageText, history, fileContents);
             if (result.answer) {
                 setMessages(prev => [...prev, { role: 'assistant', text: result.answer }]);
             }
