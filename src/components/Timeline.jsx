@@ -107,92 +107,175 @@ const Navbar = ({ activePage = 'Timeline' }) => {
 };
 
 /* ─── Timeline Item ─── */
-const TimelineItem = ({ item, isLast, isCompleted }) => {
+const TimelineItem = ({ item, index, isLast, isCompleted, isNext, onToggle }) => {
     return (
         <div style={{ display: 'flex', gap: '20px', position: 'relative' }}>
             {/* Vertical line */}
             {!isLast && (
                 <div style={{
                     position: 'absolute',
-                    left: '15px',
+                    left: '17px',
                     top: '50px',
                     width: '2px',
                     height: 'calc(100% - 50px)',
-                    background: 'rgba(0, 51, 102, 0.15)'
+                    background: isCompleted
+                        ? 'linear-gradient(to bottom, #28a745, #28a745)'
+                        : 'rgba(0, 51, 102, 0.1)',
+                    transition: 'background 0.4s ease'
                 }} />
             )}
 
-            {/* Icon circle */}
-            <div style={{
-                width: '36px',
-                height: '36px',
-                borderRadius: '50%',
-                background: isCompleted ? '#28a745' : 'rgba(0, 51, 102, 0.1)',
-                border: `2px solid ${isCompleted ? '#28a745' : 'rgba(0, 51, 102, 0.2)'}`,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                flexShrink: 0,
-                zIndex: 10,
-                marginTop: '2px'
-            }}>
+            {/* Icon circle — clickable to toggle completion */}
+            <div
+                onClick={() => onToggle && onToggle(index)}
+                title={isCompleted ? 'Mark as incomplete' : 'Mark as completed'}
+                style={{
+                    width: '36px',
+                    height: '36px',
+                    borderRadius: '50%',
+                    background: isCompleted
+                        ? '#28a745'
+                        : isNext
+                            ? 'rgba(0, 51, 102, 0.08)'
+                            : 'rgba(0, 51, 102, 0.05)',
+                    border: isCompleted
+                        ? '2px solid #28a745'
+                        : isNext
+                            ? '2px solid #003366'
+                            : '2px solid rgba(0, 51, 102, 0.15)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0,
+                    zIndex: 10,
+                    marginTop: '2px',
+                    cursor: 'pointer',
+                    transition: 'all 0.3s ease',
+                    boxShadow: isNext
+                        ? '0 0 0 4px rgba(0, 51, 102, 0.08)'
+                        : isCompleted
+                            ? '0 0 0 4px rgba(40, 167, 69, 0.12)'
+                            : 'none'
+                }}
+            >
                 {isCompleted
                     ? <CheckCircle size={20} color="white" />
-                    : <Clock size={18} color="#003366" />
+                    : isNext
+                        ? <ChevronRight size={18} color="#003366" />
+                        : <Clock size={16} color="rgba(0,51,102,0.35)" />
                 }
             </div>
 
-            {/* Content */}
-            <div style={{ flex: 1, paddingTop: '4px', paddingBottom: '24px' }}>
-                <h3 style={{
-                    margin: '0 0 8px 0',
-                    fontSize: '16px',
-                    fontWeight: '600',
-                    color: '#1E272D'
+            {/* Content card */}
+            <div style={{
+                flex: 1,
+                paddingTop: '0',
+                paddingBottom: '20px',
+            }}>
+                <div style={{
+                    padding: isNext ? '16px 20px' : '8px 0',
+                    borderRadius: isNext ? '16px' : '0',
+                    background: isNext
+                        ? 'linear-gradient(135deg, rgba(0, 51, 102, 0.04) 0%, rgba(0, 51, 102, 0.02) 100%)'
+                        : 'transparent',
+                    border: isNext ? '1px solid rgba(0, 51, 102, 0.1)' : '1px solid transparent',
+                    transition: 'all 0.3s ease',
+                    position: 'relative'
                 }}>
-                    {item.title}
-                </h3>
-                <p style={{
-                    margin: '0 0 12px 0',
-                    fontSize: '14px',
-                    color: '#64748b',
-                    lineHeight: '1.5'
-                }}>
-                    {item.description}
-                </p>
-                {item.dueDate && (
-                    <div style={{
-                        fontSize: '13px',
-                        color: '#dc3545',
-                        fontWeight: '500',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '6px'
-                    }}>
-                        <AlertCircle size={14} />
-                        Due: {item.dueDate}
-                    </div>
-                )}
-                {item.relatedDocuments && item.relatedDocuments.length > 0 && (
-                    <div style={{ marginTop: '12px', paddingLeft: '12px', borderLeft: '2px solid rgba(0, 51, 102, 0.1)' }}>
-                        <span style={{ fontSize: '12px', fontWeight: '600', color: '#003366', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                            Resources:
+                    {/* UP NEXT badge */}
+                    {isNext && (
+                        <span style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '5px',
+                            fontSize: '10px',
+                            fontWeight: '700',
+                            letterSpacing: '1.5px',
+                            textTransform: 'uppercase',
+                            color: '#003366',
+                            background: 'rgba(0, 51, 102, 0.08)',
+                            padding: '4px 12px',
+                            borderRadius: '100px',
+                            marginBottom: '10px'
+                        }}>
+                            <ChevronRight size={11} />
+                            Up Next
                         </span>
-                        <div style={{ marginTop: '8px', display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                            {item.relatedDocuments.map((doc, idx) => (
-                                <span key={idx} style={{
-                                    fontSize: '12px',
-                                    background: 'rgba(0, 51, 102, 0.08)',
-                                    color: '#003366',
-                                    padding: '4px 10px',
-                                    borderRadius: '6px'
-                                }}>
-                                    {doc}
-                                </span>
-                            ))}
+                    )}
+
+                    {/* COMPLETED badge */}
+                    {isCompleted && (
+                        <span style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            fontSize: '10px',
+                            fontWeight: '700',
+                            letterSpacing: '1.5px',
+                            textTransform: 'uppercase',
+                            color: '#28a745',
+                            marginBottom: '6px'
+                        }}>
+                            <CheckCircle size={11} />
+                            Completed
+                        </span>
+                    )}
+
+                    <h3 style={{
+                        margin: '0 0 6px 0',
+                        fontSize: isNext ? '17px' : '15px',
+                        fontWeight: '600',
+                        color: isCompleted ? '#64748b' : '#1E272D',
+                        textDecoration: isCompleted ? 'line-through' : 'none',
+                        opacity: isCompleted ? 0.7 : 1,
+                        transition: 'all 0.3s ease'
+                    }}>
+                        {item.title}
+                    </h3>
+                    <p style={{
+                        margin: '0 0 10px 0',
+                        fontSize: '14px',
+                        color: isCompleted ? '#94a3b8' : '#64748b',
+                        lineHeight: '1.55',
+                        transition: 'color 0.3s ease'
+                    }}>
+                        {item.description}
+                    </p>
+                    {item.dueDate && !isCompleted && (
+                        <div style={{
+                            fontSize: '13px',
+                            color: '#dc3545',
+                            fontWeight: '500',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '6px'
+                        }}>
+                            <AlertCircle size={14} />
+                            Due: {item.dueDate}
                         </div>
-                    </div>
-                )}
+                    )}
+                    {item.relatedDocuments && item.relatedDocuments.length > 0 && (
+                        <div style={{ marginTop: '10px', paddingLeft: '12px', borderLeft: `2px solid ${isCompleted ? 'rgba(40,167,69,0.15)' : 'rgba(0, 51, 102, 0.1)'}` }}>
+                            <span style={{ fontSize: '11px', fontWeight: '600', color: isCompleted ? '#94a3b8' : '#003366', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                                Resources:
+                            </span>
+                            <div style={{ marginTop: '6px', display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                                {item.relatedDocuments.map((doc, idx) => (
+                                    <span key={idx} style={{
+                                        fontSize: '12px',
+                                        background: isCompleted ? 'rgba(40,167,69,0.06)' : 'rgba(0, 51, 102, 0.06)',
+                                        color: isCompleted ? '#94a3b8' : '#003366',
+                                        padding: '4px 10px',
+                                        borderRadius: '6px',
+                                        transition: 'all 0.3s ease'
+                                    }}>
+                                        {doc}
+                                    </span>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+                </div>
             </div>
         </div>
     );
@@ -278,6 +361,27 @@ const Timeline = () => {
         return () => { cancelled = true; };
     }, [messages, studentCountry, institution, cacheValid, timelineCache, setTimelineCache]);
 
+    /* ─── Toggle completion ─── */
+    const toggleComplete = (index) => {
+        setMilestones(prev => {
+            const updated = prev.map((m, i) =>
+                i === index ? { ...m, completed: !m.completed } : m
+            );
+            // Also update cache so it persists
+            if (timelineCache) {
+                setTimelineCache({ ...timelineCache, items: updated });
+            }
+            return updated;
+        });
+    };
+
+    /* ─── Progress stats ─── */
+    const actionItems = milestones.filter(m => !m.isHeader);
+    const completedCount = actionItems.filter(m => m.completed).length;
+    const totalCount = actionItems.length;
+    const progressPct = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
+    const nextUpIndex = milestones.findIndex(m => !m.completed && !m.isHeader);
+
     return (
         <div style={{
             height: '100vh',
@@ -335,10 +439,10 @@ const Timeline = () => {
                 boxSizing: 'border-box',
                 overflow: 'hidden'
             }}>
-                {/* Header */}
-                <div style={{ marginBottom: '48px' }}>
+                {/* Header + Progress */}
+                <div style={{ marginBottom: '32px' }}>
                     <h1 style={{
-                        margin: '0 0 12px 0',
+                        margin: '0 0 8px 0',
                         fontSize: '36px',
                         fontWeight: '700',
                         color: '#003366'
@@ -346,7 +450,7 @@ const Timeline = () => {
                         Your Immigration Timeline
                     </h1>
                     <p style={{
-                        margin: 0,
+                        margin: '0 0 20px 0',
                         fontSize: '16px',
                         color: '#64748b'
                     }}>
@@ -354,13 +458,75 @@ const Timeline = () => {
                             ? `${studentCountry} student • ${institution}`
                             : 'Chat to personalize your timeline'}
                     </p>
+
+                    {/* Progress bar */}
+                    {totalCount > 0 && !loading && (
+                        <div style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '16px',
+                            background: 'rgba(255,255,255,0.7)',
+                            backdropFilter: 'blur(10px)',
+                            borderRadius: '16px',
+                            padding: '16px 24px',
+                            boxShadow: '0 2px 12px rgba(0,51,102,0.05), inset 0 1px 0 rgba(255,255,255,0.8)'
+                        }}>
+                            <div style={{ flex: 1 }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                                    <span style={{ fontSize: '13px', fontWeight: '600', color: '#003366' }}>
+                                        Progress
+                                    </span>
+                                    <span style={{ fontSize: '13px', fontWeight: '600', color: completedCount === totalCount ? '#28a745' : '#003366' }}>
+                                        {completedCount} of {totalCount} completed
+                                    </span>
+                                </div>
+                                <div style={{
+                                    height: '8px',
+                                    borderRadius: '100px',
+                                    background: 'rgba(0, 51, 102, 0.08)',
+                                    overflow: 'hidden'
+                                }}>
+                                    <div style={{
+                                        height: '100%',
+                                        width: `${progressPct}%`,
+                                        borderRadius: '100px',
+                                        background: completedCount === totalCount
+                                            ? 'linear-gradient(90deg, #28a745, #20c997)'
+                                            : 'linear-gradient(90deg, #003366, #1a5c99)',
+                                        transition: 'width 0.5s cubic-bezier(0.4, 0, 0.2, 1)'
+                                    }} />
+                                </div>
+                            </div>
+                            <div style={{
+                                fontSize: '22px',
+                                fontWeight: '700',
+                                color: completedCount === totalCount ? '#28a745' : '#003366',
+                                minWidth: '48px',
+                                textAlign: 'right'
+                            }}>
+                                {progressPct}%
+                            </div>
+                        </div>
+                    )}
                 </div>
+
+                {/* Tip */}
+                {totalCount > 0 && !loading && (
+                    <p style={{
+                        margin: '0 0 16px 0',
+                        fontSize: '12px',
+                        color: '#94a3b8',
+                        fontStyle: 'italic'
+                    }}>
+                        Click the circle icons to mark steps as completed.
+                    </p>
+                )}
 
                 {/* Timeline */}
                 <div style={{
                     overflowY: 'auto',
                     paddingRight: '12px',
-                    maxHeight: 'calc(100vh - 260px)'
+                    maxHeight: 'calc(100vh - 340px)'
                 }}>
                     <div style={{
                         background: 'rgba(255, 255, 255, 0.75)',
@@ -382,9 +548,12 @@ const Timeline = () => {
                                 {milestones.map((milestone, idx) => (
                                     <TimelineItem
                                         key={idx}
+                                        index={idx}
                                         item={milestone}
                                         isLast={idx === milestones.length - 1}
                                         isCompleted={milestone.completed}
+                                        isNext={idx === nextUpIndex}
+                                        onToggle={toggleComplete}
                                     />
                                 ))}
                             </>
