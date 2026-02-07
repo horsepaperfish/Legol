@@ -2,7 +2,14 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Eye, EyeOff, ArrowRight, GraduationCap } from 'lucide-react';
-import { auth, googleProvider, signInWithPopup } from '../firebase';
+import {
+  auth,
+  googleProvider,
+  signInWithPopup,
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  updateProfile
+} from '../firebase';
 
 /* ─── Navbar (consistent with other pages) ─── */
 const Navbar = () => {
@@ -112,9 +119,84 @@ const Login = () => {
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
-        navigate('/');
+        setError('');
+        setLoading(true);
+
+        // Basic validation
+        if (!email || !password) {
+            setError('Please fill in all required fields');
+            setLoading(false);
+            return;
+        }
+
+        if (isSignUp && !name) {
+            setError('Please enter your full name');
+            setLoading(false);
+            return;
+        }
+
+        if (password.length < 6) {
+            setError('Password must be at least 6 characters');
+            setLoading(false);
+            return;
+        }
+
+        try {
+            if (isSignUp) {
+                // Sign up with email and password
+                const result = await createUserWithEmailAndPassword(auth, email, password);
+
+                // Update user profile with display name
+                await updateProfile(result.user, {
+                    displayName: name
+                });
+
+                // Store user info
+                localStorage.setItem('user', JSON.stringify({
+                    uid: result.user.uid,
+                    email: result.user.email,
+                    displayName: name
+                }));
+            } else {
+                // Sign in with email and password
+                const result = await signInWithEmailAndPassword(auth, email, password);
+
+                // Store user info
+                localStorage.setItem('user', JSON.stringify({
+                    uid: result.user.uid,
+                    email: result.user.email,
+                    displayName: result.user.displayName
+                }));
+            }
+
+            // Navigate to home page
+            navigate('/');
+        } catch (error) {
+            console.error('Authentication error:', error);
+
+            // User-friendly error messages
+            let errorMessage = 'Authentication failed. Please try again.';
+
+            if (error.code === 'auth/email-already-in-use') {
+                errorMessage = 'This email is already registered. Try signing in instead.';
+            } else if (error.code === 'auth/invalid-email') {
+                errorMessage = 'Please enter a valid email address.';
+            } else if (error.code === 'auth/user-not-found') {
+                errorMessage = 'No account found with this email. Try signing up instead.';
+            } else if (error.code === 'auth/wrong-password') {
+                errorMessage = 'Incorrect password. Please try again.';
+            } else if (error.code === 'auth/weak-password') {
+                errorMessage = 'Password is too weak. Use at least 6 characters.';
+            } else if (error.code === 'auth/invalid-credential') {
+                errorMessage = 'Invalid email or password. Please check and try again.';
+            }
+
+            setError(errorMessage);
+        } finally {
+            setLoading(false);
+        }
     };
 
     const handleGoogleSignIn = async () => {
@@ -617,6 +699,7 @@ const Login = () => {
                                     {/* Submit Button — solid navy */}
                                     <motion.button
                                         type="submit"
+                                        disabled={loading}
                                         whileHover={{ scale: 1.015, y: -1 }}
                                         whileTap={{ scale: 0.985 }}
                                         style={{
@@ -629,24 +712,29 @@ const Login = () => {
                                             fontSize: '15px',
                                             fontWeight: '600',
                                             fontFamily: 'inherit',
-                                            cursor: 'pointer',
+                                            cursor: loading ? 'not-allowed' : 'pointer',
                                             boxShadow: '0 4px 12px rgba(0, 51, 102, 0.25)',
                                             display: 'flex',
                                             alignItems: 'center',
                                             justifyContent: 'center',
                                             gap: '8px',
                                             transition: 'box-shadow 0.25s ease',
-                                            marginTop: '4px'
+                                            marginTop: '4px',
+                                            opacity: loading ? 0.6 : 1
                                         }}
                                         onMouseEnter={(e) => {
-                                            e.currentTarget.style.boxShadow = '0 6px 18px rgba(0, 51, 102, 0.35)';
+                                            if (!loading) {
+                                                e.currentTarget.style.boxShadow = '0 6px 18px rgba(0, 51, 102, 0.35)';
+                                            }
                                         }}
                                         onMouseLeave={(e) => {
-                                            e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 51, 102, 0.25)';
+                                            if (!loading) {
+                                                e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 51, 102, 0.25)';
+                                            }
                                         }}
                                     >
-                                        {isSignUp ? 'Get Started' : 'Sign In'}
-                                        <ArrowRight size={16} />
+                                        {loading ? 'Please wait...' : (isSignUp ? 'Get Started' : 'Sign In')}
+                                        {!loading && <ArrowRight size={16} />}
                                     </motion.button>
                                 </form>
 

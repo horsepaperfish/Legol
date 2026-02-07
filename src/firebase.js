@@ -1,5 +1,12 @@
 import { initializeApp } from 'firebase/app';
-import { getAuth, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
+import {
+  getAuth,
+  GoogleAuthProvider,
+  signInWithPopup,
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  updateProfile
+} from 'firebase/auth';
 
 // Firebase configuration
 const firebaseConfig = {
@@ -21,4 +28,11 @@ googleProvider.setCustomParameters({
   prompt: 'select_account'
 });
 
-export { auth, googleProvider, signInWithPopup };
+export {
+  auth,
+  googleProvider,
+  signInWithPopup,
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  updateProfile
+};
