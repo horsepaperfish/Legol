@@ -34,6 +34,7 @@ const Navbar = () => {
                             if (item === 'Home') navigate('/');
                             if (item === 'Chat') navigate('/chat');
                             if (item === 'Timeline') navigate('/timeline');
+                            if (item === 'Resources') navigate('/resources');
                         }}
                         style={{
                             padding: '10px 24px',
