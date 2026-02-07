@@ -25,16 +25,21 @@ const Navbar = () => (
             gap: '4px'
         }}>
             {['Home', 'Documents', 'Timeline', 'Resources'].map((item, i) => (
-                <div key={item} style={{
-                    padding: '10px 24px',
-                    borderRadius: '100px',
-                    fontSize: '14px',
-                    fontWeight: i === 0 ? '600' : '500',
-                    color: i === 0 ? '#003366' : '#64748b',
-                    cursor: 'pointer',
-                    background: i === 0 ? '#FFFFFF' : 'transparent',
-                    boxShadow: i === 0 ? '0 2px 4px rgba(0,0,0,0.05)' : 'none'
-                }}>
+                <div key={item}
+                    onClick={() => {
+                        if (item === 'Timeline') window.location.href = '/timeline';
+                        if (item === 'Home') window.location.href = '/';
+                    }}
+                    style={{
+                        padding: '10px 24px',
+                        borderRadius: '100px',
+                        fontSize: '14px',
+                        fontWeight: i === 0 ? '600' : '500',
+                        color: i === 0 ? '#003366' : '#64748b',
+                        cursor: 'pointer',
+                        background: i === 0 ? '#FFFFFF' : 'transparent',
+                        boxShadow: i === 0 ? '0 2px 4px rgba(0,0,0,0.05)' : 'none'
+                    }}>
                     {item}
                 </div>
             ))}
