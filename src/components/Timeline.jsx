@@ -1,7 +1,8 @@
-import React, { useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { CheckCircle, Clock, AlertCircle, ChevronRight } from 'lucide-react';
+import { CheckCircle, Clock, AlertCircle, ChevronRight, Loader2 } from 'lucide-react';
 import { useChatContext } from '../context/ChatContext';
+import { api } from '../api';
 
 /* ─── Navbar ─── */
 const Navbar = ({ activePage = 'Timeline' }) => {
@@ -197,147 +198,85 @@ const TimelineItem = ({ item, isLast, isCompleted }) => {
     );
 };
 
-/* ─── Helper: Extract milestones from actual chat content ─── */
-const extractMilestones = (messages, studentCountry, institution, topic) => {
-    const extracted = [];
-    const seen = new Set();
-
-    // Combine all assistant responses to analyze
-    const assistantResponses = messages
-        .filter(msg => msg.role === 'assistant')
-        .map(msg => msg.text.toLowerCase())
-        .join('\n');
-
-    const userMessages = messages
-        .filter(msg => msg.role === 'user')
-        .map(msg => msg.text.toLowerCase())
-        .join('\n');
-
-    const allText = assistantResponses + '\n' + userMessages;
-
-    // Comprehensive milestone patterns - includes immigration, financial, documents, etc
-    const milestonePatterns = [
-        {
-            keywords: ['f-1', 'f1 student', 'student visa', 'opt', 'practical training'],
-            title: 'F-1 Student Visa',
-            description: 'Complete F-1 student visa requirements and documentation',
-            relatedDocuments: ['Passport', 'I-20 Form', 'Financial Documentation', 'SEVIS Fee Receipt'],
-            category: 'visa'
-        },
-        {
-            keywords: ['work visa', 'h-1b', 'employment visa', 'sponsor', 'work authorization'],
-            title: 'Secure Work Visa',
-            description: 'Obtain employer sponsorship and file for work visa (H-1B or similar)',
-            relatedDocuments: ['Employment Letter', 'Job Offer', 'H-1B Petition', 'Passport'],
-            category: 'visa'
-        },
-        {
-            keywords: ['green card', 'permanent resident', 'i-485', 'permanent residency', 'green card'],
-            title: 'Apply for Green Card',
-            description: 'File for permanent residency status',
-            relatedDocuments: ['I-485 Form', 'Medical Exam (I-693)', 'Birth Certificate', 'Marriage Certificate'],
-            category: 'visa'
-        },
-        {
-            keywords: ['naturalization', 'citizenship', 'form n-400', 'citizen'],
-            title: 'File for Citizenship',
-            description: 'Complete naturalization application and take citizenship test',
-            relatedDocuments: ['Form N-400', 'Birth Certificate', 'Passport', 'Green Card'],
-            category: 'visa'
-        },
-        {
-            keywords: ['financial support', 'financial aid', 'scholarship', 'fafsa', 'loans', 'grants', 'tuition'],
-            title: 'Secure Financial Support',
-            description: 'Explore scholarships, grants, federal aid, and loans to fund your education',
-            relatedDocuments: ['FAFSA Application', 'Scholarship Applications', 'Bank Statements', 'Tax Returns', 'CMU Financial Aid Forms'],
-            category: 'financial'
-        },
-        {
-            keywords: ['background check', 'fbi', 'criminal', 'police clearance'],
-            title: 'Complete Background Check',
-            description: 'Pass FBI criminal background check and police clearance',
-            relatedDocuments: ['FBI Background Check', 'Police Clearance Certificate'],
-            category: 'documents'
-        },
-        {
-            keywords: ['tax return', 'irs', 'income tax', '1040', 'tax documentation'],
-            title: 'Submit Tax Documentation',
-            description: 'File required federal tax returns and transcripts',
-            relatedDocuments: ['Tax Returns (Last 5 Years)', 'W-2 Forms', 'IRS Transcripts'],
-            category: 'documents'
-        },
-        {
-            keywords: ['marriage certificate', 'spouse', 'married', 'dependent'],
-            title: 'Verify Marriage Documentation',
-            description: 'Submit certified marriage certificate if applicable',
-            relatedDocuments: ['Marriage Certificate', 'Spouse Passport', 'Birth Certificate'],
-            category: 'documents'
-        },
-        {
-            keywords: ['medical exam', 'i-693', 'vaccination', 'physical', 'health check'],
-            title: 'Complete Medical Examination',
-            description: 'Get required medical exam by USCIS-approved physician',
-            relatedDocuments: ['Medical Exam (I-693)', 'Vaccination Records', 'Birth Certificate'],
-            category: 'documents'
-        },
-        {
-            keywords: ['employment verification', 'employment letter', 'job offer'],
-            title: 'Obtain Employment Verification',
-            description: 'Get official letter from current or prospective employer',
-            relatedDocuments: ['Employment Letter', 'Job Offer Letter', 'Company Registration'],
-            category: 'documents'
-        }
-    ];
-
-    // Check if milestones are mentioned in the conversation
-    milestonePatterns.forEach(pattern => {
-        const mentioned = pattern.keywords.some(keyword => allText.includes(keyword));
-
-        if (mentioned && !seen.has(pattern.title)) {
-            extracted.push({
-                ...pattern,
-                completed: false
-            });
-            seen.add(pattern.title);
-        }
-    });
-
-    // Add personalization header if user provided context
-    if (studentCountry && institution) {
-        const header = {
-            title: `Immigration & Education Plan for ${studentCountry}`,
-            description: `International student from ${studentCountry} studying at ${institution}. Your personalized action items below.`,
-            relatedDocuments: [],
-            completed: false,
-            isHeader: true
-        };
-        extracted.unshift(header);
+/* ─── Default empty state ─── */
+const DEFAULT_EMPTY = [
+    {
+        title: 'Start Your Immigration Journey',
+        description: 'Chat with LEGOL to understand your visa, financial aid, and immigration requirements. Ask about your situation and we\'ll create a personalized timeline.',
+        relatedDocuments: [],
+        completed: false
     }
-
-    // Default message if nothing extracted
-    if (extracted.length === 0 || (extracted.length === 1 && extracted[0].isHeader)) {
-        return [
-            {
-                title: 'Start Your Immigration Journey',
-                description: 'Chat with LEGOL to understand your visa, financial aid, and immigration requirements. Ask about your situation and we\'ll create a personalized timeline.',
-                relatedDocuments: [],
-                completed: false
-            }
-        ];
-    }
-
-    return extracted;
-};
+];
 
 /* ─── Main Timeline Page ─── */
 const Timeline = () => {
     const navigate = useNavigate();
-    const { messages, studentCountry, institution, topic } = useChatContext();
+    const { messages, studentCountry, institution, timelineCache, setTimelineCache } = useChatContext();
+    const [milestones, setMilestones] = useState([]);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState(null);
 
-    // Extract milestones based on actual chat content
-    const milestones = useMemo(() => {
-        return extractMilestones(messages, studentCountry, institution, topic);
-    }, [messages, studentCountry, institution, topic]);
+    const messageCount = messages.length;
+    const cacheValid = timelineCache && timelineCache.messageCount === messageCount;
+
+    // Use cached timeline when chat hasn't changed; otherwise fetch
+    useEffect(() => {
+        if (cacheValid) {
+            setMilestones(timelineCache.items);
+            setLoading(false);
+            setError(null);
+            return;
+        }
+
+        const history = messages.map(m => ({ role: m.role, text: m.text }));
+        if (history.length <= 1) {
+            setMilestones(DEFAULT_EMPTY);
+            setLoading(false);
+            return;
+        }
+
+        let cancelled = false;
+        setLoading(true);
+        setError(null);
+        api.getTimelineFromConversation(history)
+            .then(({ items }) => {
+                if (cancelled) return;
+                const normalized = (items || []).map(it => ({
+                    title: it.title || 'Action item',
+                    description: it.description || '',
+                    relatedDocuments: Array.isArray(it.relatedDocuments) ? it.relatedDocuments : [],
+                    completed: false
+                }));
+                let result;
+                if (normalized.length === 0) {
+                    result = DEFAULT_EMPTY;
+                } else {
+                    const withHeader = [];
+                    if (studentCountry && institution) {
+                        withHeader.push({
+                            title: `Immigration & Education Plan for ${studentCountry}`,
+                            description: `International student from ${studentCountry} studying at ${institution}. Your personalized action items below.`,
+                            relatedDocuments: [],
+                            completed: false,
+                            isHeader: true
+                        });
+                    }
+                    result = [...withHeader, ...normalized];
+                }
+                setMilestones(result);
+                setTimelineCache({ items: result, messageCount });
+            })
+            .catch((err) => {
+                if (!cancelled) {
+                    setError(err?.message || 'Could not load timeline');
+                    setMilestones(DEFAULT_EMPTY);
+                }
+            })
+            .finally(() => {
+                if (!cancelled) setLoading(false);
+            });
+        return () => { cancelled = true; };
+    }, [messages, studentCountry, institution, cacheValid, timelineCache, setTimelineCache]);
 
     return (
         <div style={{
@@ -430,14 +369,26 @@ const Timeline = () => {
                         padding: '40px 36px',
                         boxShadow: '0 4px 20px rgba(0, 51, 102, 0.06), inset 0 1px 0 rgba(255,255,255,0.8)'
                     }}>
-                        {milestones.map((milestone, idx) => (
-                            <TimelineItem
-                                key={idx}
-                                item={milestone}
-                                isLast={idx === milestones.length - 1}
-                                isCompleted={milestone.completed}
-                            />
-                        ))}
+                        {loading ? (
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px', padding: '48px', color: '#003366' }}>
+                                <Loader2 size={24} style={{ animation: 'spin 1s linear infinite' }} />
+                                <span>Reading your conversation…</span>
+                            </div>
+                        ) : (
+                            <>
+                                {error && (
+                                    <p style={{ margin: '0 0 16px 0', fontSize: '14px', color: '#dc3545' }}>{error}</p>
+                                )}
+                                {milestones.map((milestone, idx) => (
+                                    <TimelineItem
+                                        key={idx}
+                                        item={milestone}
+                                        isLast={idx === milestones.length - 1}
+                                        isCompleted={milestone.completed}
+                                    />
+                                ))}
+                            </>
+                        )}
 
                         {/* CTA at bottom */}
                         <div style={{
@@ -453,7 +404,26 @@ const Timeline = () => {
                             }}>
                                 Want to update your timeline?
                             </p>
-                            <button
+                            <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap' }}>
+                                <button
+                                    onClick={() => {
+                                        setTimelineCache(null);
+                                    }}
+                                    style={{
+                                        padding: '12px 28px',
+                                        background: 'transparent',
+                                        color: '#003366',
+                                        border: '2px solid #003366',
+                                        borderRadius: '12px',
+                                        fontSize: '14px',
+                                        fontWeight: '600',
+                                        cursor: 'pointer',
+                                        fontFamily: 'inherit'
+                                    }}
+                                >
+                                    Refresh timeline
+                                </button>
+                                <button
                                 onClick={() => navigate('/chat')}
                                 style={{
                                     padding: '12px 28px',
@@ -483,6 +453,7 @@ const Timeline = () => {
                                 Go to Chat
                                 <ChevronRight size={16} />
                             </button>
+                            </div>
                         </div>
                     </div>
                 </div>

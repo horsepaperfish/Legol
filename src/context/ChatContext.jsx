@@ -12,17 +12,24 @@ export const ChatProvider = ({ children }) => {
     const [studentCountry, setStudentCountry] = useState('Singapore');
     const [institution, setInstitution] = useState('Carnegie Mellon University');
     const [topic, setTopic] = useState(null);
+    // Timeline cache: only refetch when messages change
+    const [timelineCache, setTimelineCache] = useState(null);
 
     // Load from localStorage on mount
     useEffect(() => {
         const saved = localStorage.getItem('chatState');
         if (saved) {
             try {
-                const { messages: savedMessages, studentCountry: savedCountry, institution: savedInst, topic: savedTopic } = JSON.parse(saved);
+                const parsed = JSON.parse(saved);
+                const { messages: savedMessages, studentCountry: savedCountry, institution: savedInst, topic: savedTopic, timelineCache: savedTimeline } = parsed;
                 setMessages(savedMessages);
                 setStudentCountry(savedCountry);
                 setInstitution(savedInst);
                 setTopic(savedTopic);
+                // Only restore timeline if it was for this same message count
+                if (savedTimeline && savedTimeline.messageCount === (savedMessages?.length ?? 0)) {
+                    setTimelineCache(savedTimeline);
+                }
             } catch (err) {
                 console.error('Failed to load chat state:', err);
             }
@@ -35,9 +42,10 @@ export const ChatProvider = ({ children }) => {
             messages,
             studentCountry,
             institution,
-            topic
+            topic,
+            timelineCache
         }));
-    }, [messages, studentCountry, institution, topic]);
+    }, [messages, studentCountry, institution, topic, timelineCache]);
 
     const addMessage = (role, text) => {
         setMessages(prev => [...prev, { role, text }]);
@@ -50,6 +58,7 @@ export const ChatProvider = ({ children }) => {
                 text: "Hello! I'm your LEGOL immigration assistant. I can help answer questions about dual citizenship, work visas, document requirements, and more. How can I assist you today?"
             }
         ]);
+        setTimelineCache(null);
     };
 
     return (
@@ -63,7 +72,9 @@ export const ChatProvider = ({ children }) => {
             institution,
             setInstitution,
             topic,
-            setTopic
+            setTopic,
+            timelineCache,
+            setTimelineCache
         }}>
             {children}
         </ChatContext.Provider>

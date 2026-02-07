@@ -100,6 +100,18 @@ def chat():
         "answer": answer
     }), 200
 
+@app.route('/timeline', methods=['POST'])
+def extract_timeline():
+    """Extract timeline action items from the chat conversation (no hardcoded patterns)."""
+    data = request.json or {}
+    history = data.get('history', [])
+
+    if not history:
+        return jsonify({"items": []}), 200
+
+    items = claude_integration.extract_timeline_from_conversation(history)
+    return jsonify({"items": items}), 200
+
 @app.route('/upload', methods=['POST'])
 def upload_file():
     if 'files' not in request.files:

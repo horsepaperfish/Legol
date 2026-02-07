@@ -183,3 +183,77 @@ class ClaudeIntegration:
             import traceback
             traceback.print_exc()
             return "I apologize, but I'm having trouble processing your request right now. Please try again."
+
+    def extract_timeline_from_conversation(self, conversation_history):
+        """
+        Analyzes the full chat conversation and returns a list of timeline items
+        (action items, forms, documents, steps) that were actually discussed.
+        Used to drive the Timeline page from real conversation content.
+        """
+        if not conversation_history or len(conversation_history) == 0:
+            return []
+
+        system_prompt = """You are building a timeline for a user who chatted with an immigration assistant (LEGOL).
+
+From the user's messages, infer: country/citizenship (e.g. Korean, dual US), institution (e.g. CMU), and what they need (financial aid, military, etc.). Then output a COMPLETE timeline. Each of the following must be its OWN separate item in the "items" array—do NOT merge them into 2–3 broad items.
+
+MUST include as SEPARATE items when the user needs financial aid:
+1. "FAFSA / Federal Student Aid" – Apply for federal aid (dual citizens may qualify). relatedDocuments: FAFSA, Tax Returns, Income Documentation.
+2. "[Institution] Financial Aid Office" – Contact [use school name from chat, e.g. CMU] financial aid office for eligibility, deadlines, required docs. relatedDocuments: Financial Aid Application, Bank Statements, Proof of Enrollment.
+3. "[Institution] Scholarships & Aid" – Scholarships, grants, TA/RA positions, on-campus employment. relatedDocuments: Scholarship Applications, CMU Financial Aid Forms, Financial Documentation.
+
+MUST include as SEPARATE items when the user is Korean and mentions military / dual citizenship:
+4. "Selective Service Registration" – Register when 18 for federal aid and government job eligibility (U.S. requirement for dual citizens). relatedDocuments: Selective Service Registration.
+5. "Korean Military – Medical Exam" – Complete physical/medical examination for military service eligibility. relatedDocuments: Military Medical Exam, Medical Records.
+6. "Korean Military – Exemption / Waiver Eligibility" – Determine if you qualify to skip or reduce service (residency, when you got U.S. citizenship, etc.). Consult embassy or military specialist. relatedDocuments: Passport, Citizenship docs, Residency proof.
+7. "Korean Military – Deferment" – If in school: request deferment with enrollment proof. relatedDocuments: Military Service Deferment Form, Certificate of Enrollment, Passport, National ID.
+8. "Korean Military – Postponement" – If completing studies: apply for postponement. relatedDocuments: Application for Postponement of Military Service, Certificate of Enrollment, Academic transcript, Expected graduation date.
+9. "Korean Embassy / Consulate" – Consult for exact requirements, forms, and procedures. relatedDocuments: South Korean Passport, National ID, Required forms.
+
+For each item: title (short), description (one sentence), relatedDocuments (array of form/document names).
+
+Output valid JSON only, no markdown. Format:
+{"items": [
+  {"title": "...", "description": "...", "relatedDocuments": ["...", "..."]},
+  ...
+]}
+
+Rules:
+- Output at least the 9 items above when the user says they are Korean with dual citizenship and need financial aid and military service. Use the institution name from the chat (e.g. CMU). Do not collapse into 3 items."""
+
+        # Build messages for Claude (same format as chat)
+        messages = []
+        for msg in conversation_history:
+            role = msg.get("role")
+            text = msg.get("text", "")
+            if not text or (role == "assistant" and "LEGOL immigration assistant" in text and "How can I assist" in text):
+                continue
+            messages.append({"role": role, "content": text})
+
+        if not messages:
+            return []
+
+        user_content = "Conversation:\n\n"
+        for msg in messages:
+            user_content += f"{msg['role'].upper()}:\n{msg['content']}\n\n"
+
+        user_content += "\nFrom the user's message(s) above, infer their situation (country, citizenship, institution, and what they need—e.g. financial aid, military service). Then output a COMPLETE timeline: all standard steps and documents for (1) government + institution financial aid and (2) U.S. and Korean military obligations, including medical exams, eligibility for exemption/skipping service, deferment, postponement, and all related forms. Use the institution name from the chat. Output JSON only."
+
+        try:
+            response = self.client.messages.create(
+                model="claude-3-haiku-20240307",
+                max_tokens=2048,
+                temperature=0,
+                system=system_prompt,
+                messages=[{"role": "user", "content": user_content}]
+            )
+            content = response.content[0].text.strip()
+            if "```json" in content:
+                content = content.split("```json")[1].split("```")[0].strip()
+            elif "```" in content:
+                content = content.split("```")[1].split("```")[0].strip()
+            data = json.loads(content)
+            return data.get("items", [])
+        except Exception as e:
+            print(f"Error extracting timeline from conversation: {e}")
+            return []
