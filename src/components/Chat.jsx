@@ -870,7 +870,7 @@ const Chat = () => {
                             onClick={handleFileButtonClick}
                             style={{
                                 position: 'relative',
-                                width: '42px',
+                                width: '54px',
                                 height: '42px',
                                 borderRadius: '14px',
                                 border: '1px solid rgba(0, 51, 102, 0.12)',

@@ -5,7 +5,8 @@
 1. Clone the repository
 2. Install dependencies: `npm install`
 3. Run the dev server: `npm run dev`
-4. Open your browser to the URL shown in terminal (usually http://localhost:5173)
+4. Open your browser to the URL shown in terminal (usually http://localhost:5173) (This runs the frontend - which is the website we display for the demo)
+5. To run the backend: `cd backend && source venv/bin/activate && python app.py` (you need to run both servers for the chatbot to work) 
 
 # React + Vite
 
