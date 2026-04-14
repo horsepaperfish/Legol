@@ -113,39 +113,12 @@ export const ChatProvider = ({ children }) => {
     // Suggested document IDs – derived from conversation
     const [suggestedDocIds, setSuggestedDocIds] = useState(DEFAULT_SUGGESTED_IDS);
 
-    // Load from localStorage on mount
+    // Chat state is no longer persisted to localStorage
+    // Each session starts fresh
     useEffect(() => {
-        const saved = localStorage.getItem('chatState');
-        if (saved) {
-            try {
-                const parsed = JSON.parse(saved);
-                const { messages: savedMessages, studentCountry: savedCountry, institution: savedInst, topic: savedTopic, timelineCache: savedTimeline, suggestedDocIds: savedSuggested } = parsed;
-                setMessages(savedMessages);
-                setStudentCountry(savedCountry);
-                setInstitution(savedInst);
-                setTopic(savedTopic);
-                // Only restore timeline if it was for this same message count
-                if (savedTimeline && savedTimeline.messageCount === (savedMessages?.length ?? 0)) {
-                    setTimelineCache(savedTimeline);
-                }
-                if (savedSuggested) setSuggestedDocIds(savedSuggested);
-            } catch (err) {
-                console.error('Failed to load chat state:', err);
-            }
-        }
+        // Clear any old persisted chat data on mount
+        localStorage.removeItem('chatState');
     }, []);
-
-    // Save to localStorage whenever state changes
-    useEffect(() => {
-        localStorage.setItem('chatState', JSON.stringify({
-            messages,
-            studentCountry,
-            institution,
-            topic,
-            timelineCache,
-            suggestedDocIds
-        }));
-    }, [messages, studentCountry, institution, topic, timelineCache, suggestedDocIds]);
 
     // Recompute suggestions whenever messages change
     useEffect(() => {
